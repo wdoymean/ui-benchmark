@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Shadow Realm | UI Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #020617;
+            color: #f8fafc;
+            font-family: 'Space+Grotesk', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #8b5cf6;
+            text-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .success-banner {
+            display: none;
+            background: #065f46;
+            color: #34d399;
+            padding: 1rem 2rem;
+            border-radius: 2rem;
+            margin-top: 2rem;
+            border: 1px solid #059669;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Deep Shadow Explorer</h1>
+    <div id="root-host"></div>
+    <div id="success" class="success-banner">Shadow Protocol Cracked! Message: <span id="secret-msg"></span></div>
+
+    <script>
+        const rootHost = document.getElementById('root-host');
+        const rootShadow = rootHost.attachShadow({ mode: 'open' });
+
+        rootShadow.innerHTML = `
+            <style>
+                .outer-box { border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; background: rgba(30, 41, 59, 0.5); }
+                h3 { margin-top: 0; color: #cbd5e1; }
+            </style>
+            <div class="outer-box">
+                <h3>Level 1: Root Host</h3>
+                <div id="mid-host"></div>
+            </div>
+        `;
+
+        const midHost = rootShadow.getElementById('mid-host');
+        const midShadow = midHost.attachShadow({ mode: 'open' });
+
+        midShadow.innerHTML = `
+            <style>
+                .mid-box { border: 2px solid #8b5cf6; padding: 1.5rem; border-radius: 0.75rem; background: #0f172a; margin-top: 1rem; }
+            </style>
+            <div class="mid-box">
+                <h4>Level 2: Intermediate</h4>
+                <div id="inner-host"></div>
+            </div>
+        `;
+
+        const innerHost = midShadow.getElementById('inner-host');
+        const innerShadow = innerHost.attachShadow({ mode: 'open' });
+
+        innerShadow.innerHTML = `
+            <style>
+                input { background: #1e293b; border: 1px solid #334155; color: white; padding: 0.5rem; border-radius: 0.4rem; width: 200px; }
+                button { background: #8b5cf6; color: white; border: none; padding: 0.5rem 1rem; margin-left: 0.5rem; border-radius: 0.4rem; cursor: pointer; }
+                button:hover { background: #7c3aed; }
+            </style>
+            <p>Enter the master code to reveal the secret.</p>
+            <input type="text" id="secret-input" placeholder="Type 'OPEN-SESAME'">
+            <button id="reveal-btn">Reveal</button>
+        `;
+
+        innerShadow.getElementById('reveal-btn').onclick = () => {
+            const val = innerShadow.getElementById('secret-input').value;
+            if (val === 'OPEN-SESAME') {
+                document.getElementById('success').style.display = 'block';
+                document.getElementById('secret-msg').innerText = 'The cake is a lie';
+            } else {
+                alert('Invalid code!');
+            }
+        };
+    </script>
+</body>
+
+</html>

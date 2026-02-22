@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Shifting Sands | UI Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #111;
+            color: #0f0;
+            font-family: 'Roboto Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .matrix-box {
+            border: 1px solid #0f0;
+            padding: 3rem;
+            background: rgba(0, 50, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .btn-container {
+            min-height: 60px;
+            margin-top: 2rem;
+        }
+
+        #unstable-btn {
+            padding: 0.75rem 2rem;
+            background: black;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #unstable-btn:hover {
+            background: #0f0;
+            color: black;
+        }
+
+        .success {
+            color: white;
+            background: blue;
+            padding: 1rem;
+            margin-top: 2rem;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="matrix-box">
+        <h1>UNSTABLE TERMINAL</h1>
+        <p>IDENTIFY AND CLICK THE ACCESS BUTTON</p>
+        <p style="font-size: 0.8rem; color: #080;">Warning: Element attributes rotate every 2000ms</p>
+
+        <div class="btn-container">
+            <button id="btn-init" class="cls-init" name="nm-init">ACCESS SYSTEM</button>
+        </div>
+
+        <div id="logged-in" class="success">ACCESS GRANTED. DATA EXFILTRATED.</div>
+    </div>
+
+    <script>
+        const btn = document.querySelector('button');
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+        function randomStr(len) {
+            let s = '';
+            for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+            return s;
+        }
+
+        setInterval(() => {
+            const newId = 'id-' + randomStr(8);
+            const newClass = 'class-' + randomStr(8);
+            const newName = 'name-' + randomStr(8);
+
+            btn.id = newId;
+            btn.className = newClass;
+            btn.setAttribute('name', newName);
+
+            console.log(`Rotated: ID=${newId}, CLASS=${newClass}, NAME=${newName}`);
+        }, 2000);
+
+        btn.onclick = () => {
+            document.getElementById('logged-in').style.display = 'block';
+            btn.style.display = 'none';
+        };
+    </script>
+</body>
+
+</html>
