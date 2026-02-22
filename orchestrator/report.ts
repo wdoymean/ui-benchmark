@@ -23,12 +23,13 @@ async function generateReport() {
     markdown += `Generated on: ${new Date().toLocaleString()}\n\n`;
 
     markdown += `## 🚀 Summary Table\n\n`;
-    markdown += `| Scenario | Adapter | Success | Steps | Total (ms) | LLM (ms) | Tool (ms) | Efficiency |\n`;
-    markdown += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+    markdown += `| Scenario | Adapter | Success | Steps | Total (ms) | Efficiency | Avg Context (chars) |\n`;
+    markdown += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 
     data.forEach(row => {
         const efficiency = parseFloat(row['Token Efficiency'] || '0').toFixed(6);
-        markdown += `| ${row.Scenario} | ${row.Adapter} | ${row.Success === 'true' ? '✅' : '❌'} | ${row.Steps} | ${row['Total Duration (ms)']} | ${row['LLM Duration (ms)']} | ${row['Tool Duration (ms)']} | **${efficiency}** |\n`;
+        const contextSize = Math.round(parseFloat(row['Avg Context Size (chars)'] || '0'));
+        markdown += `| ${row.Scenario} | ${row.Adapter} | ${row.Success === 'true' ? '✅' : '❌'} | ${row.Steps} | ${row['Total Duration (ms)']} | **${efficiency}** | ${contextSize} |\n`;
     });
 
     markdown += `\n\n## 💡 Key Metrics Explained\n\n`;

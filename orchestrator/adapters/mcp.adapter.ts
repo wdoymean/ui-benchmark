@@ -62,6 +62,19 @@ export class McpAdapter implements BrowserAdapter {
         if (!this.client) throw new Error("MCP Client not initialized");
 
         try {
+            // Flexible Parameter Mapping: Handle url vs uri for navigation
+            const tool = this.tools.find(t => t.name === name);
+            if (tool && args.url) {
+                const schema = JSON.stringify(tool.parameters).toLowerCase();
+                const isNavigation = name.includes('navigate') || name.includes('goto') || name.includes('open');
+
+                if (isNavigation && schema.includes('"uri"') && !schema.includes('"url"')) {
+                    console.log(`[MCP] Remapping 'url' to 'uri' for tool ${name}`);
+                    args.uri = args.url;
+                    delete args.url;
+                }
+            }
+
             const start = Date.now();
             const result = await this.client.callTool({
                 name,
@@ -80,6 +93,7 @@ export class McpAdapter implements BrowserAdapter {
             return {
                 success: !result.isError,
                 message: message || (result.isError ? "Tool execution failed" : "Tool executed"),
+                contextSize: message.length,
                 data: { durationMs: duration }
             };
         } catch (error: any) {
@@ -93,22 +107,45 @@ export class McpAdapter implements BrowserAdapter {
     async getPageContext(): Promise<string> {
         if (!this.client) return "Client not initialized";
 
-        // Internal helper to find a context-providing tool
-        const stateTools = ['browser_snapshot', 'snapshot', 'get_dom', 'getPageSource', 'get_html'];
-        const tool = this.tools.find(t => stateTools.includes(t.name) || (t.name.includes('snapshot') && !t.name.includes('take')));
+        // 1. Heuristic Context Tool Discovery
+        const contextKeywords = ['snapshot', 'dom', 'source', 'view', 'html'];
+        const tool = this.tools.find(t => {
+            const lowName = t.name.toLowerCase();
+            return contextKeywords.some(k => lowName.includes(k)) &&
+                !lowName.includes('take') && // Avoid "take_screenshot"
+                !lowName.includes('capture');
+        });
 
         if (tool) {
             const result = await this.executeTool(tool.name, {});
-            return result.message;
+            if (result.success && result.message) return result.message;
         }
 
-        // Fallback to evaluate tools
-        const evalTool = this.tools.find(t =>
-            t.name === 'browser_evaluate' ||
-            t.name === 'evaluate_script' ||
-            t.name === 'playwright_evaluate' ||
-            t.name === 'evaluate'
-        );
+        // 2. Resource Fallback (New MCP Feature)
+        try {
+            const resources = await this.client.listResources();
+            const pageResource = resources.resources.find(r =>
+                r.name.toLowerCase().includes('page') ||
+                r.name.toLowerCase().includes('dom') ||
+                r.uri.includes('current')
+            );
+
+            if (pageResource) {
+                const content = await this.client.readResource({ uri: pageResource.uri });
+                const firstContent = content.contents?.[0];
+                if (firstContent && 'text' in firstContent && typeof firstContent.text === 'string') {
+                    return firstContent.text;
+                }
+            }
+        } catch (e) {
+            // Server might not support resources, ignore
+        }
+
+        // 3. Fallback to common evaluate pattern
+        const evalTool = this.tools.find(t => {
+            const lowName = t.name.toLowerCase();
+            return lowName.includes('evaluate') || lowName.includes('exec') || lowName.includes('script');
+        });
 
         if (evalTool) {
             const script = `
@@ -119,11 +156,16 @@ export class McpAdapter implements BrowserAdapter {
                     return document.body.innerText.slice(0, 1000) + '\\nINTERACTIVE ELEMENTS:\\n' + interactive;
                 })()
             `;
-            const result = await this.executeTool(evalTool.name, { script });
-            return result.message;
+            // Some evaluate tools use 'expression' instead of 'script'
+            const evalArgs = JSON.stringify(evalTool.parameters).includes('expression')
+                ? { expression: script }
+                : { script: script };
+
+            const result = await this.executeTool(evalTool.name, evalArgs);
+            if (result.success) return result.message;
         }
 
-        return "MCP: No context tool found. Available: " + this.tools.map(t => t.name).join(', ');
+        return "MCP: No context tool or resource found. Available: " + this.tools.map(t => t.name).join(', ');
     }
 
     async close(): Promise<void> {

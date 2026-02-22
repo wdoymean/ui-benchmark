@@ -11,6 +11,7 @@ export interface Metrics {
     promptTokens: number;
     completionTokens: number;
     tokenEfficiency: number;
+    avgContextSize: number;
     error?: string;
 }
 
@@ -36,6 +37,7 @@ export class Telemetry {
                 { id: 'promptTokens', title: 'Prompt Tokens' },
                 { id: 'completionTokens', title: 'Completion Tokens' },
                 { id: 'tokenEfficiency', title: 'Token Efficiency' },
+                { id: 'avgContextSize', title: 'Avg Context Size (chars)' },
                 { id: 'error', title: 'Error' },
             ]
         });

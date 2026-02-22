@@ -70,6 +70,8 @@ async function runBenchmark() {
                 let toolDurationMs = 0;
                 let success = false;
                 let lastError = '';
+                let totalContextChars = 0;
+                let contextCount = 0;
 
                 try {
                     // Initial Navigation
@@ -86,6 +88,8 @@ async function runBenchmark() {
                         // 1. Get Context & Merge Verification
                         const contextStart = Date.now();
                         const context = await adapter.getPageContext();
+                        totalContextChars += context.length;
+                        contextCount++;
                         toolDurationMs += (Date.now() - contextStart);
 
                         // Early exit if goal achieved by previous step
@@ -113,6 +117,10 @@ async function runBenchmark() {
                                 console.log(`Step ${steps}: ${toolName}`);
                                 const toolStart = Date.now();
                                 const result = await adapter.executeTool(toolName, toolArgs);
+                                if (result.message) {
+                                    totalContextChars += result.message.length;
+                                    contextCount++;
+                                }
                                 toolDurationMs += (Date.now() - toolStart);
 
                                 messages.push({ role: 'assistant', content: response.content || '...', tool_calls: response.toolCalls });
@@ -122,6 +130,8 @@ async function runBenchmark() {
                             // Final Verification (User requested fresh check)
                             const finalCheckStart = Date.now();
                             const finalContext = await adapter.getPageContext();
+                            totalContextChars += finalContext.length;
+                            contextCount++;
                             toolDurationMs += (Date.now() - finalCheckStart);
 
                             if (verifyGoal(scenario.name, finalContext)) {
@@ -151,6 +161,7 @@ async function runBenchmark() {
                         promptTokens: totalPromptTokens,
                         completionTokens: totalCompletionTokens,
                         tokenEfficiency: totalTokens > 0 ? (success ? 1 : 0) / (totalTokens / 1000) : 0,
+                        avgContextSize: contextCount > 0 ? totalContextChars / contextCount : 0,
                         error: lastError
                     });
                 }

@@ -7,6 +7,7 @@ export interface Tool {
 export interface AdapterResponse {
     success: boolean;
     message: string;
+    contextSize?: number; // Total characters in the message/content
     data?: any;
 }
 
