@@ -35,15 +35,15 @@ async function generateReport() {
     markdown += `- **Total Duration**: End-to-end time for the scenario.\n`;
     markdown += `- **LLM Duration**: Pure inference time (latency from the provider).\n`;
     markdown += `- **Tool Duration**: Time spent executing MCP commands (browser interaction).\n`;
-    markdown += `- **Token Efficiency**: Calculated as \`Success (1/0) / (Prompt + Completion Tokens)\`. Higher is better. It represents how effectively the agent uses its "budget" to solve tasks.\n\n`;
+    markdown += `- **Token Efficiency**: Calculated as \`Success (1/0) / (Total Tokens / 1000)\`. Higher is better. It represents how many successful scenarios you get per 1,000 tokens spent.\n\n`;
 
     markdown += `## 🛠️ Infrastructure\n\n`;
     markdown += `- **LLM**: Gemini Flash (Configurable via .env)\n`;
     markdown += `- **Protocol**: Model Context Protocol (MCP)\n`;
     markdown += `- **Scenarios**: 5 High-complexity UI tasks (Shadow DOM, D&D, etc.)\n`;
 
-    fs.writeFileSync('BENCHMARK_REPORT.md', markdown);
-    console.log("Report generated: BENCHMARK_REPORT.md");
+    fs.writeFileSync('LAST_RUN_SUMMARY.md', markdown);
+    console.log("Report generated: LAST_RUN_SUMMARY.md");
 }
 
 generateReport().catch(console.error);

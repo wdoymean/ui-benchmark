@@ -1,4 +1,4 @@
 node_modules
 .env
-results.csv
-BENCHMARK_REPORT.md
+dist
+log.txt

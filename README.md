@@ -1,72 +1,82 @@
-# MCP Browser Automation Benchmark
+# 📊 MCP Browser Automation Benchmark
 
-Benchmarking harness for comparing browser automation frameworks (Playwright, Puppeteer, Vibium, Vercel Agent) using different LLM providers.
+A high-performance benchmarking harness designed to evaluate AI-driven browser automation frameworks using the **Model Context Protocol (MCP)**. This tool compares different MCP servers (Playwright, Chrome DevTools, Vercel) across complex UI scenarios to measure reliability, latency, and token efficiency.
 
-## Project Structure
+## 🚀 Quick Start
 
-- `target-app/`: Local Express server (Port 3001) with 5 interactive test scenarios.
-- `orchestrator/`: Benchmarking engine.
-  - `adapters/`: Logic for various browser automation frameworks.
-  - `llm-client.ts`: LLM wrapper supporting Claude, GPT-4, Gemini, and Local models.
-  - `runner.ts`: Core orchestrator that manages scenarios, adapters, and LLM turns.
-  - `telemetry.ts`: Metrics capture and CSV reporting.
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-## Test Scenarios (Target App)
+2. **Configure Environment**:
+   Create a `.env` file with your API keys:
+   ```env
+   GEMINI_API_KEY=your_key_here
+   ```
 
-1. **Table Pagination**: Find items by navigating through pages and applying filters.
-2. **Wizard Form**: Complete a multi-step checkout process with field validation.
-3. **Shadow DOM**: Interact with elements hidden inside nested Shadow Roots.
-4. **Drag and Drop**: Move tasks between columns on a Kanban board.
-5. **Self-Healing**: Click buttons whose identifiers (ID/Class) change dynamically.
+3. **Start Target Application**:
+   ```bash
+   npm run target
+   ```
+   *The test app will be available at [http://localhost:3001](http://localhost:3001).*
 
-## Supported LLMs
+4. **Run Full Benchmark Suite**:
+   ```bash
+   npm run test:all
+   ```
 
-Configure your preferred provider in `.env`:
+---
 
-*   **Anthropic**: `ANTHROPIC_API_KEY=...`
-*   **OpenAI**: `OPENAI_API_KEY=...`
-*   **Google Gemini**: `GEMINI_API_KEY=...` (Supports custom models via `GEMINI_MODEL`)
-*   **Local LLM (Ollama/LM Studio)**: 
-    ```env
-    LOCAL_LLM_URL=http://localhost:11434/v1
-    LOCAL_LLM_MODEL=llama3
-    ```
+## 🛠️ Methodology
 
-## Usage
+This benchmark evaluates frameworks based on three key pillars:
 
-### 1. Start Target Application
-```bash
-npm run target
-```
-The dashboard is available at: [http://localhost:3001/](http://localhost:3001/)
+1. **Reliability (Success Rate)**: 
+   Tests the agent's ability to reach a specific "Verification State" (e.g., finding a unique string in the Shadow DOM) within a maximum of 5 steps. Success is verified by objective DOM markers.
 
-### 2. Run Benchmark
-Execute the full suite and generate a report:
-```bash
-npm run benchmark
-```
+2. **Economic Efficiency (Token Usage)**: 
+   Measures the "Token Tax" of each framework's context representation.
+   - **Metric**: `Token Efficiency = Success / (Total Tokens / 1000)`.
+   - *Higher is better* (more successful tasks per 1k tokens).
 
-### 3. Running Specific Tests (Selective Benchmarking)
-You can filter by adapter name or scenario name using command-line arguments:
-```bash
-# Run only Playwright adapter
-npm run bench -- playwright
+3. **Latency Analysis**: 
+   Decouples execution time into:
+   - **LLM Duration**: Inference time ("Thinking").
+   - **Tool Duration**: Browser interaction time ("Acting").
 
-# Run MCP Playwright on the "Shadow DOM" scenario
-npm run bench -- mcp-playwright shadow
-```
+---
 
-## Metrics & Results
+## 🔌 Supported Adapters
 
-The runner exports performance data to **`results.csv`** and generates **`BENCHMARK_REPORT.md`** including:
-- **Success/Failure**: Based on scenario-specific confirmation markers.
-- **Steps**: Total turns taken (capped at 5 per scenario).
-- **Latency**: Duration (ms) split by LLM (inference) and Tool (browser action).
-- **Token Efficiency**: Calculated as `Success / (Prompt + Completion Tokens)`. 
-    - **Higher is better.** 
-    - A higher value means the model/adapter combination is more intelligent and cost-effective, achieving success with minimal conversational overhead.
-- **Cost**: Raw token usage (Prompt & Completion).
+The framework dynamically discovers tools from official MCP servers:
+- **MCP-Playwright**: Official Playwright MCP implementation (`@playwright/mcp`).
+- **MCP-Chrome-DevTools**: Official Google Chrome DevTools MCP (`chrome-devtools-mcp`).
+- **Vercel-Agent**: Vercel's Agent Browser MCP (`agent-browser-mcp`).
+- **Vibium**: Vibium Browser MCP (`vibium`).
 
-## Security Note
+---
 
-Browser adapters are launched with `--disable-web-security` and CSP bypass enabled to allow LLM-driven automation without interference from restrictive security policies during benchmarking.
+## 📈 Reporting
+
+After running `npm run test:all`, the framework automatically generates:
+- **`results.csv`**: Raw metrics for every scenario run.
+- **`LAST_RUN_SUMMARY.md`**: A human-readable performance breakdown including success rates, durations, and token efficiency.
+
+---
+
+## 🧪 Test Scenarios
+
+1. **Table Pagination**: Complex data retrieval across multiple pages.
+2. **Wizard Form**: Multi-step stateful form completion.
+3. **Shadow DOM**: Interaction with deep-nested, encapsulated elements.
+4. **Drag and Drop**: HTML5 drag-and-drop validation.
+5. **Self-Healing**: Resilience against changing IDs and CSS classes.
+
+---
+
+## 🔒 Code Hygiene & Security
+
+- **Environment Isolation**: All API keys are loaded strictly via `.env` (excluded from Git).
+- **Process Management**: `McpAdapter` ensures all MCP transport connections are properly closed after execution to prevent hanging processes.
+- **Security Bypass**: Browser instances are launched with `--disable-web-security` for reliable benchmarking in isolated environments.

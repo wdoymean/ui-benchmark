@@ -33,7 +33,8 @@ async function runBenchmark() {
     const allAdapters: BrowserAdapter[] = [
         new McpAdapter("MCP-Playwright", "npx", ["-y", "@playwright/mcp"]),
         new McpAdapter("MCP-Chrome-DevTools", "npx", ["-y", "chrome-devtools-mcp"]),
-        new McpAdapter("Vercel-Agent", "npx", ["-y", "@vercel/agent-browser", "mcp-server"])
+        new McpAdapter("Vercel-Agent", "npx", ["-y", "agent-browser"]),
+        new McpAdapter("Vibium", "npx", ["-y", "vibium", "mcp"])
     ];
 
     const adapters = adapterFilter
@@ -81,7 +82,7 @@ async function runBenchmark() {
                         { role: 'system', content: `Goal: ${scenario.goal}. Respond with "SUCCESS" when achieved.` },
                     ];
 
-                    while (steps < 5 && !success) {
+                    while (steps < 20 && !success) {
                         // 1. Get Context & Merge Verification
                         const contextStart = Date.now();
                         const context = await adapter.getPageContext();
@@ -149,7 +150,7 @@ async function runBenchmark() {
                         toolDurationMs,
                         promptTokens: totalPromptTokens,
                         completionTokens: totalCompletionTokens,
-                        tokenEfficiency: totalTokens > 0 ? (success ? 1 : 0) / totalTokens : 0,
+                        tokenEfficiency: totalTokens > 0 ? (success ? 1 : 0) / (totalTokens / 1000) : 0,
                         error: lastError
                     });
                 }
