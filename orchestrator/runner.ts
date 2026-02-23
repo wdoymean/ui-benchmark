@@ -12,14 +12,23 @@ const SCENARIOS = [
 ];
 
 function verifyGoal(scenarioName: string, context: string): boolean {
-    if (!context) return false;
+    if (!context || context.length < 20) return false;
+    if (context.startsWith('MCP:') || context.includes('Client not initialized')) return false;
+
+    // Safety check: if context looks like raw HTML, it's likely a false positive from source tools
+    if (context.includes('<!DOCTYPE') || (context.includes('<html') && context.includes('<body'))) return false;
+
     const lowerContext = context.toLowerCase();
     switch (scenarioName) {
         case 'Shadow DOM': return context.includes('The cake is a lie');
-        case 'Wizard Form': return context.includes('#CONF-');
+        case 'Wizard Form': return context.includes('#CONF-') && !context.includes('id="step3"'); // Should be visible
         case 'Drag and Drop': return context.includes('Completed!');
         case 'Self Healing': return context.includes('ACCESS GRANTED');
-        case 'Table Pagination': return context.includes('$900') || lowerContext.includes('plasma shield');
+        case 'Table Pagination':
+            // Stricter check for table pagination to avoid matching source code
+            const hasPrice = context.includes('$900');
+            const hasName = lowerContext.includes('plasma shield');
+            return hasPrice && hasName && !context.includes('const data = [');
         default: return false;
     }
 }
@@ -54,6 +63,12 @@ async function runBenchmark() {
         console.log(`\n=== Starting Adapter: ${adapter.name} ===`);
         try {
             await adapter.init();
+
+            // Add a Warm-up specifically for Vibium
+            if (adapter.name === 'Vibium') {
+                console.log(`[Warm-up] Waiting 2s for ${adapter.name} stabilization...`);
+                await new Promise(r => setTimeout(r, 2000));
+            }
 
             // Optimization: Filter tools once per adapter
             const navigationTools = ['browser_navigate', 'navigate', 'navigate_page', 'navigate_url', 'browser_navigate_back', 'browser_tabs', 'browser_close', 'close_page', 'browser_install'];

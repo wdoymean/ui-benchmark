@@ -1,16 +1,16 @@
 # 📊 UI Automation Benchmark Report
 
-Generated on: 2/22/2026, 10:45:59 PM
+Generated on: 2/23/2026, 11:12:12 PM
 
 ## 🚀 Summary Table
 
-| Scenario | Adapter | Success | Steps | Total (ms) | LLM (ms) | Tool (ms) | Efficiency |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Table Pagination | MCP-Playwright | ✅ | 7 | 12473 | 6763 | 5262 | **0.028791** |
-| Wizard Form | MCP-Playwright | ✅ | 5 | 6972 | 4758 | 2165 | **0.073692** |
-| Shadow DOM | MCP-Playwright | ✅ | 2 | 3850 | 1722 | 2079 | **0.220459** |
-| Drag and Drop | MCP-Playwright | ❌ | 20 | 58338 | 54022 | 4276 | **0.000000** |
-| Self Healing | MCP-Playwright | ✅ | 1 | 1885 | 797 | 1043 | **0.485909** |
+| Scenario | Adapter | Success | Steps | Total (ms) | Efficiency | Avg Context (chars) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Table Pagination | Vibium | ❌ | 20 | 34207 | **0.000000** | 278 |
+| Wizard Form | Vibium | ❌ | 20 | 280614 | **0.000000** | 147 |
+| Shadow DOM | Vibium | ✅ | 11 | 19493 | **0.037720** | 174 |
+| Drag and Drop | Vibium | ❌ | 20 | 105930 | **0.000000** | 136 |
+| Self Healing | Vibium | ✅ | 1 | 6356 | **0.687758** | 129 |
 
 
 ## 💡 Key Metrics Explained

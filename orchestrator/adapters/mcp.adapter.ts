@@ -2,6 +2,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { BrowserAdapter, Tool, AdapterResponse } from './base';
 
+const CAPABILITIES: Record<string, { context: string, navigate: string, keyword: string }> = {
+    'playwright': { context: 'playwright_get_html', navigate: 'playwright_navigate', keyword: 'playwright' },
+    'vibium': { context: 'get_visual_context', navigate: 'navigate', keyword: 'vibium' },
+    'vercel': { context: 'agent_browser_get_dom', navigate: 'agent_browser_navigate', keyword: 'agent_browser' },
+    'chrome': { context: 'chrome_devtools_get_dom', navigate: 'chrome_devtools_navigate', keyword: 'chrome_devtools' }
+};
+
 export class McpAdapter implements BrowserAdapter {
     public name: string;
     private client: Client | null = null;
@@ -9,6 +16,7 @@ export class McpAdapter implements BrowserAdapter {
     private serverCommand: string;
     private serverArgs: string[];
     private tools: Tool[] = [];
+    private activeCapability: { context: string, navigate: string } | null = null;
 
     constructor(name: string, command: string, args: string[] = []) {
         this.name = name;
@@ -28,7 +36,12 @@ export class McpAdapter implements BrowserAdapter {
         this.transport = new StdioClientTransport({
             command: this.serverCommand,
             args: this.serverArgs,
-            env: process.env as Record<string, string>, // Inherit full environment
+            env: {
+                ...process.env,
+                CHROME_FLAGS: "--no-sandbox --disable-setuid-sandbox",
+                CHROMIUM_FLAGS: "--no-sandbox --disable-setuid-sandbox",
+                PUPPETEER_ARGS: "--no-sandbox --disable-setuid-sandbox",
+            } as Record<string, string>,
         });
 
         this.client = new Client(
@@ -41,17 +54,41 @@ export class McpAdapter implements BrowserAdapter {
             }
         );
 
-        await this.client.connect(this.transport);
+        try {
+            await this.client.connect(this.transport);
 
-        // Discover tools
-        const response = await this.client.listTools();
-        this.tools = response.tools.map(t => ({
-            name: t.name,
-            description: t.description || '',
-            parameters: t.inputSchema as any
-        }));
+            // Discover tools
+            const response = await this.client.listTools();
+            this.tools = response.tools.map(t => ({
+                name: t.name,
+                description: t.description || '',
+                parameters: t.inputSchema as any
+            }));
 
-        console.log(`[MCP] ${this.name} initialized with ${this.tools.length} tools`);
+            if (this.tools.length === 0) {
+                throw new Error("No tools discovered");
+            }
+
+            // Auto-Detection of Capabilities
+            const toolNames = this.tools.map(t => t.name).join(' ');
+            for (const cap of Object.values(CAPABILITIES)) {
+                if (toolNames.includes(cap.keyword)) {
+                    this.activeCapability = { context: cap.context, navigate: cap.navigate };
+                    console.log(`[MCP] Detected capability set for ${this.name}: ${cap.keyword}`);
+                    break;
+                }
+            }
+
+            // Special case for Vibium if keyword detection is tricky
+            if (!this.activeCapability && this.name.toLowerCase().includes('vibium')) {
+                this.activeCapability = CAPABILITIES['vibium'];
+            }
+
+            console.log(`[MCP] ${this.name} initialized with ${this.tools.length} tools`);
+        } catch (error) {
+            console.error(`[MCP] Error during ${this.name} initialization:`, error);
+            throw new Error(`[MCP] Adapter ${this.name} failed to start - Browser Crash suspected. Details: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     getTools(): Tool[] {
@@ -85,9 +122,14 @@ export class McpAdapter implements BrowserAdapter {
             let message = "";
             if (Array.isArray(result.content)) {
                 message = result.content
-                    .filter(c => c.type === 'text')
-                    .map(c => c.text)
+                    .map(c => {
+                        if (c.type === 'text') return c.text;
+                        if (c.type === 'image') return "[Image Content]";
+                        return JSON.stringify(c);
+                    })
                     .join('\n');
+            } else if (result.content) {
+                message = typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
             }
 
             return {
@@ -107,41 +149,15 @@ export class McpAdapter implements BrowserAdapter {
     async getPageContext(): Promise<string> {
         if (!this.client) return "Client not initialized";
 
-        // 1. Heuristic Context Tool Discovery
-        const contextKeywords = ['snapshot', 'dom', 'source', 'view', 'html'];
-        const tool = this.tools.find(t => {
-            const lowName = t.name.toLowerCase();
-            return contextKeywords.some(k => lowName.includes(k)) &&
-                !lowName.includes('take') && // Avoid "take_screenshot"
-                !lowName.includes('capture');
-        });
-
-        if (tool) {
-            const result = await this.executeTool(tool.name, {});
-            if (result.success && result.message) return result.message;
-        }
-
-        // 2. Resource Fallback (New MCP Feature)
-        try {
-            const resources = await this.client.listResources();
-            const pageResource = resources.resources.find(r =>
-                r.name.toLowerCase().includes('page') ||
-                r.name.toLowerCase().includes('dom') ||
-                r.uri.includes('current')
-            );
-
-            if (pageResource) {
-                const content = await this.client.readResource({ uri: pageResource.uri });
-                const firstContent = content.contents?.[0];
-                if (firstContent && 'text' in firstContent && typeof firstContent.text === 'string') {
-                    return firstContent.text;
-                }
+        // 1. Capability-Based Context
+        if (this.activeCapability) {
+            const result = await this.executeTool(this.activeCapability.context, {});
+            if (result.success && result.message) {
+                return result.message;
             }
-        } catch (e) {
-            // Server might not support resources, ignore
         }
 
-        // 3. Fallback to common evaluate pattern
+        // 2. Fallback: JS Evaluate only if no high-level tool worked
         const evalTool = this.tools.find(t => {
             const lowName = t.name.toLowerCase();
             return lowName.includes('evaluate') || lowName.includes('exec') || lowName.includes('script');
@@ -150,27 +166,31 @@ export class McpAdapter implements BrowserAdapter {
         if (evalTool) {
             const script = `
                 (() => {
+                    if (!document.body) return "Empty Body";
                     const interactive = Array.from(document.querySelectorAll('button, input, a, [draggable="true"]'))
-                        .map(el => \`\${el.tagName} id="\${el.id}" class="\${el.className}" text="\${el.textContent?.trim().slice(0, 30)}"\`)
+                        .filter(el => {
+                            const rect = el.getBoundingClientRect();
+                            return rect.width > 0 && rect.height > 0 && getComputedStyle(el).display !== 'none';
+                        })
+                        .map(el => \`\${el.tagName} id="\${el.id}" class="\${el.className}" text="\${el.textContent?.trim().slice(0,30)}"\`)
                         .join('\\n');
-                    return document.body.innerText.slice(0, 1000) + '\\nINTERACTIVE ELEMENTS:\\n' + interactive;
+                    return document.body.innerText.slice(0, 2000) + '\\nINTERACTIVE ELEMENTS:\\n' + interactive;
                 })()
             `;
-            // Some evaluate tools use 'expression' instead of 'script'
             const evalArgs = JSON.stringify(evalTool.parameters).includes('expression')
                 ? { expression: script }
                 : { script: script };
 
             const result = await this.executeTool(evalTool.name, evalArgs);
-            if (result.success) return result.message;
+            if (result.success && result.message) return result.message;
         }
 
-        return "MCP: No context tool or resource found. Available: " + this.tools.map(t => t.name).join(', ');
+        return "MCP: No context tool found. Available: " + this.tools.map(t => t.name).join(', ');
     }
 
     async close(): Promise<void> {
         if (this.transport) {
-            await this.transport.close();
+            await (this.transport as any).close();
         }
         this.client = null;
         this.transport = null;

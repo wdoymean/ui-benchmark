@@ -1,6 +1,6 @@
-Scenario,Adapter,Success,Steps,Total Duration (ms),LLM Duration (ms),Tool Duration (ms),Prompt Tokens,Completion Tokens,Token Efficiency,Error
-Table Pagination,MCP-Playwright,true,7,12473,6763,5262,34569,164,0.028791063253965972,
-Wizard Form,MCP-Playwright,true,5,6972,4758,2165,13333,237,0.07369196757553427,
-Shadow DOM,MCP-Playwright,true,2,3850,1722,2079,4487,49,0.22045855379188714,
-Drag and Drop,MCP-Playwright,false,20,58338,54022,4276,86752,739,0,
-Self Healing,MCP-Playwright,true,1,1885,797,1043,2035,23,0.4859086491739553,
+Scenario,Adapter,Success,Steps,Total Duration (ms),LLM Duration (ms),Tool Duration (ms),Prompt Tokens,Completion Tokens,Token Efficiency,Avg Context Size (chars),Error
+Table Pagination,Vibium,false,20,34207,31426,1528,66642,349,0,278.05405405405406,
+Wizard Form,Vibium,false,20,280614,39574,240924,44852,550,0,146.51282051282053,
+Shadow DOM,Vibium,true,11,19493,19330,69,25618,893,0.03772019161857342,174.20833333333334,
+Drag and Drop,Vibium,false,20,105930,46133,59772,43046,286,0,135.5151515151515,
+Self Healing,Vibium,true,1,6356,1159,5093,1437,17,0.687757909215956,129.33333333333334,
