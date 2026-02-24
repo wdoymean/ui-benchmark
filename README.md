@@ -75,8 +75,73 @@ After running `npm run test:all`, the framework automatically generates:
 
 ---
 
+## 🔧 Configuration
+
+The framework now supports comprehensive configuration via `.env` file:
+
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit with your settings
+# Key options:
+# - LOG_LEVEL: DEBUG, INFO, WARN, ERROR
+# - MAX_STEPS: Maximum steps per scenario (default: 20)
+# - MAX_RETRIES: Retry attempts for adapter init (default: 3)
+```
+
+See `.env.example` for all available options.
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test  # Run unit tests
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Windows: Chrome Sandbox Permission Errors
+
+If you see `Sandbox cannot access executable` errors with Vibium or other Chrome-based adapters:
+
+**Option 1: Run as Administrator** (Recommended)
+```bash
+# Run PowerShell/Terminal as Administrator, then:
+npm run bench
+```
+
+**Option 2: Disable Chrome Sandbox** (Less secure, testing only)
+Add to your `.env`:
+```env
+CHROME_FLAGS=--no-sandbox --disable-setuid-sandbox
+```
+
+### Adapter Initialization Failures
+
+The framework automatically retries failed adapter initialization 3 times with 2s delays. If adapters still fail:
+- Check that you have network access for `npx` to download MCP servers
+- Verify your Node.js version is >= 18
+- Try running a single adapter: `npm run bench vibium`
+
+### Port Already in Use
+
+If port 3001 is taken, change it in `.env`:
+```env
+TARGET_PORT=3002
+TARGET_BASE_URL=http://localhost:3002
+```
+
+---
+
 ## 🔒 Code Hygiene & Security
 
 - **Environment Isolation**: All API keys are loaded strictly via `.env` (excluded from Git).
 - **Process Management**: `McpAdapter` ensures all MCP transport connections are properly closed after execution to prevent hanging processes.
-- **Security Bypass**: Browser instances are launched with `--disable-web-security` for reliable benchmarking in isolated environments.
+- **Configuration Validation**: Zod schema validation ensures type-safe configuration.
+- **Structured Logging**: Color-coded logs with configurable levels for debugging.
+- **Parallel Execution**: Adapters run concurrently with isolated state.
+- **Retry Logic**: Automatic retry with exponential backoff for transient failures.

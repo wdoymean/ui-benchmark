@@ -1,23 +1,72 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from './config';
+import { logger } from './logger';
+
+// Proper CSV parsing that handles commas in quoted fields
+function parseCSV(content: string): Record<string, string>[] {
+    const lines = content.trim().split('\n');
+    if (lines.length === 0) return [];
+
+    const headers = parseCSVLine(lines[0]);
+    const data: Record<string, string>[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length !== headers.length) {
+            logger.warn('Report', `Skipping malformed CSV line ${i + 1}`);
+            continue;
+        }
+
+        const row: Record<string, string> = {};
+        for (let j = 0; j < headers.length; j++) {
+            row[headers[j]] = values[j];
+        }
+        data.push(row);
+    }
+
+    return data;
+}
+
+function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                // Escaped quote
+                current += '"';
+                i++;
+            } else {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            // Field separator
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    result.push(current);
+    return result;
+}
 
 async function generateReport() {
-    const csvPath = path.join(process.cwd(), 'results.csv');
+    const csvPath = path.join(process.cwd(), config.output.resultsFile);
     if (!fs.existsSync(csvPath)) {
-        console.error("results.csv not found. Run the benchmark first.");
+        logger.error('Report', `${config.output.resultsFile} not found. Run the benchmark first.`);
         return;
     }
 
     const content = fs.readFileSync(csvPath, 'utf8');
-    const lines = content.trim().split('\n');
-    const headers = lines[0].split(',');
-    const data = lines.slice(1).map(line => {
-        const values = line.split(',');
-        return headers.reduce((obj, header, i) => {
-            obj[header] = values[i];
-            return obj;
-        }, {} as any);
-    });
+    const data = parseCSV(content);
 
     let markdown = `# 📊 UI Automation Benchmark Report\n\n`;
     markdown += `Generated on: ${new Date().toLocaleString()}\n\n`;
@@ -43,8 +92,11 @@ async function generateReport() {
     markdown += `- **Protocol**: Model Context Protocol (MCP)\n`;
     markdown += `- **Scenarios**: 5 High-complexity UI tasks (Shadow DOM, D&D, etc.)\n`;
 
-    fs.writeFileSync('LAST_RUN_SUMMARY.md', markdown);
-    console.log("Report generated: LAST_RUN_SUMMARY.md");
+    fs.writeFileSync(config.output.reportFile, markdown);
+    logger.info('Report', `Report generated: ${config.output.reportFile}`);
 }
 
-generateReport().catch(console.error);
+generateReport().catch(err => {
+    logger.error('Report', 'Failed to generate report', { error: err.message });
+    process.exit(1);
+});

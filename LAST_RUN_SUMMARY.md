@@ -1,16 +1,16 @@
 # 📊 UI Automation Benchmark Report
 
-Generated on: 2/23/2026, 11:12:12 PM
+Generated on: 2/24/2026, 11:27:43 PM
 
 ## 🚀 Summary Table
 
 | Scenario | Adapter | Success | Steps | Total (ms) | Efficiency | Avg Context (chars) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Table Pagination | Vibium | ❌ | 20 | 34207 | **0.000000** | 278 |
-| Wizard Form | Vibium | ❌ | 20 | 280614 | **0.000000** | 147 |
-| Shadow DOM | Vibium | ✅ | 11 | 19493 | **0.037720** | 174 |
-| Drag and Drop | Vibium | ❌ | 20 | 105930 | **0.000000** | 136 |
-| Self Healing | Vibium | ✅ | 1 | 6356 | **0.687758** | 129 |
+| Table Pagination | MCP-Selenium | ❌ | 20 | 33631 | **0.000000** | 83 |
+| Wizard Form | MCP-Selenium | ❌ | 20 | 41743 | **0.000000** | 287 |
+| Shadow DOM | MCP-Selenium | ❌ | 20 | 25924 | **0.000000** | 37 |
+| Drag and Drop | MCP-Selenium | ❌ | 20 | 32703 | **0.000000** | 134 |
+| Self Healing | MCP-Selenium | ❌ | 20 | 34096 | **0.000000** | 46 |
 
 
 ## 💡 Key Metrics Explained

@@ -1,14 +1,16 @@
 import { McpAdapter } from './adapters/mcp.adapter';
 import { LLMClient } from './llm-client';
-import { Telemetry, Metrics } from './telemetry';
+import { Telemetry } from './telemetry';
 import { BrowserAdapter } from './adapters/base';
+import { config } from './config';
+import { logger } from './logger';
 
 const SCENARIOS = [
-    { name: 'Table Pagination', url: 'http://localhost:3001/table.html', goal: 'Find the price of "Plasma Shield" by navigating through pages and filtering if needed.' },
-    { name: 'Wizard Form', url: 'http://localhost:3001/form.html', goal: 'Complete the checkout wizard with name "Alice", email "alice@test.com", phone "+123456", and address "Wonderland".' },
-    { name: 'Shadow DOM', url: 'http://localhost:3001/shadow.html', goal: 'Enter "OPEN-SESAME" into the secret input and click reveal.' },
-    { name: 'Drag and Drop', url: 'http://localhost:3001/dnd.html', goal: 'Drag "Implement MCP Logic" from To Do to the Done column.' },
-    { name: 'Self Healing', url: 'http://localhost:3001/dynamic.html', goal: 'Click the "ACCESS SYSTEM" button despite its changing attributes.' },
+    { name: 'Table Pagination', url: `${config.target.baseUrl}/table.html`, goal: 'Find the price of "Plasma Shield" by navigating through pages and filtering if needed.' },
+    { name: 'Wizard Form', url: `${config.target.baseUrl}/form.html`, goal: 'Complete the checkout wizard with name "Alice", email "alice@test.com", phone "+123456", and address "Wonderland".' },
+    { name: 'Shadow DOM', url: `${config.target.baseUrl}/shadow.html`, goal: 'Enter "OPEN-SESAME" into the secret input and click reveal.' },
+    { name: 'Drag and Drop', url: `${config.target.baseUrl}/dnd.html`, goal: 'Drag "Implement MCP Logic" from To Do to the Done column.' },
+    { name: 'Self Healing', url: `${config.target.baseUrl}/dynamic.html`, goal: 'Click the "ACCESS SYSTEM" button despite its changing attributes.' },
 ];
 
 function verifyGoal(scenarioName: string, context: string): boolean {
@@ -33,49 +35,28 @@ function verifyGoal(scenarioName: string, context: string): boolean {
     }
 }
 
-async function runBenchmark() {
-    const llm = new LLMClient();
-    const telemetry = new Telemetry();
-    const adapterFilter = process.argv[2]?.toLowerCase();
-    const scenarioFilter = process.argv[3]?.toLowerCase();
+async function runAdapterScenarios(
+    adapter: BrowserAdapter,
+    scenarios: typeof SCENARIOS,
+    llm: LLMClient,
+    telemetry: Telemetry
+): Promise<void> {
+    logger.info('Benchmark', `Starting Adapter: ${adapter.name}`);
+    try {
+        await adapter.init();
 
-    const allAdapters: BrowserAdapter[] = [
-        new McpAdapter("MCP-Playwright", "npx", ["-y", "@playwright/mcp"]),
-        new McpAdapter("MCP-Chrome-DevTools", "npx", ["-y", "chrome-devtools-mcp"]),
-        new McpAdapter("Vercel-Agent", "npx", ["-y", "agent-browser"]),
-        new McpAdapter("Vibium", "npx", ["-y", "vibium", "mcp"])
-    ];
+        // Add a Warm-up specifically for Vibium
+        if (adapter.name === 'Vibium') {
+            logger.debug('Benchmark', `Waiting ${config.benchmark.vibiumWarmupDelayMs}ms for ${adapter.name} stabilization...`);
+            await new Promise(r => setTimeout(r, config.benchmark.vibiumWarmupDelayMs));
+        }
 
-    const adapters = adapterFilter
-        ? allAdapters.filter(a => a.name.toLowerCase().includes(adapterFilter))
-        : allAdapters;
+        // Optimization: Filter tools once per adapter
+        const navigationTools = ['browser_navigate', 'navigate', 'navigate_page', 'navigate_url', 'browser_navigate_back', 'browser_tabs', 'browser_close', 'close_page', 'browser_install'];
+        const scenarioTools = adapter.getTools().filter(t => !navigationTools.includes(t.name));
 
-    if (adapters.length === 0) {
-        console.error(`No adapters found matching: ${adapterFilter}`);
-        process.exit(1);
-    }
-
-    const filteredScenarios = scenarioFilter
-        ? SCENARIOS.filter(s => s.name.toLowerCase().includes(scenarioFilter))
-        : SCENARIOS;
-
-    for (const adapter of adapters) {
-        console.log(`\n=== Starting Adapter: ${adapter.name} ===`);
-        try {
-            await adapter.init();
-
-            // Add a Warm-up specifically for Vibium
-            if (adapter.name === 'Vibium') {
-                console.log(`[Warm-up] Waiting 2s for ${adapter.name} stabilization...`);
-                await new Promise(r => setTimeout(r, 2000));
-            }
-
-            // Optimization: Filter tools once per adapter
-            const navigationTools = ['browser_navigate', 'navigate', 'navigate_page', 'navigate_url', 'browser_navigate_back', 'browser_tabs', 'browser_close', 'close_page', 'browser_install'];
-            const scenarioTools = adapter.getTools().filter(t => !navigationTools.includes(t.name));
-
-            for (const scenario of filteredScenarios) {
-                console.log(`\n>>> Testing scenario: ${scenario.name}`);
+        for (const scenario of scenarios) {
+                logger.info('Scenario', `Testing: ${scenario.name} with ${adapter.name}`);
 
                 const startTime = Date.now();
                 let steps = 0;
@@ -99,9 +80,15 @@ async function runBenchmark() {
                         { role: 'system', content: `Goal: ${scenario.goal}. Respond with "SUCCESS" when achieved.` },
                     ];
 
-                    while (steps < 20 && !success) {
+                    while (steps < config.benchmark.maxSteps && !success) {
                         // 1. Get Context & Merge Verification
                         const contextStart = Date.now();
+
+                        // Settle delay for Chrome DevTools to allow UI to update
+                        if (adapter.name.includes('Chrome-DevTools')) {
+                            await new Promise(r => setTimeout(r, config.benchmark.chromeDevToolsSettleDelayMs));
+                        }
+
                         const context = await adapter.getPageContext();
                         totalContextChars += context.length;
                         contextCount++;
@@ -129,7 +116,7 @@ async function runBenchmark() {
                                 const toolName = toolCall.name;
                                 const toolArgs = toolCall.args;
 
-                                console.log(`Step ${steps}: ${toolName}`);
+                                logger.debug('Scenario', `Step ${steps}: ${toolName}`);
                                 const toolStart = Date.now();
                                 const result = await adapter.executeTool(toolName, toolArgs);
                                 if (result.message) {
@@ -155,12 +142,12 @@ async function runBenchmark() {
                                 messages.push({ role: 'user', content: `Verification failed. The goal does not appear to be met based on the current page state.` });
                             }
                         } else {
-                            console.log(`Step ${steps}: ${response.content}`);
+                            logger.debug('Scenario', `Step ${steps}: ${response.content}`);
                         }
                     }
                 } catch (err: any) {
                     lastError = err.message;
-                    console.error(`Error:`, err);
+                    logger.error('Scenario', 'Scenario execution failed', { error: err.message, stack: err.stack });
                 } finally {
                     const totalDurationMs = Date.now() - startTime;
                     const totalTokens = totalPromptTokens + totalCompletionTokens;
@@ -181,14 +168,49 @@ async function runBenchmark() {
                     });
                 }
             }
-        } catch (err: any) {
-            console.error(`Failed to initialize adapter ${adapter.name}:`, err);
-        } finally {
-            await adapter.close();
-        }
+    } catch (err: any) {
+        logger.error('Benchmark', `Failed to initialize adapter ${adapter.name}`, { error: err.message });
+    } finally {
+        await adapter.close();
+    }
+}
+
+async function runBenchmark() {
+    const llm = new LLMClient();
+    const telemetry = new Telemetry();
+    const adapterFilter = process.argv[2]?.toLowerCase();
+    const scenarioFilter = process.argv[3]?.toLowerCase();
+
+    const allAdapters: BrowserAdapter[] = [
+        new McpAdapter("MCP-Playwright", "npx", ["-y", "@playwright/mcp"]),
+        new McpAdapter("MCP-Chrome-DevTools", "npx", ["-y", "chrome-devtools-mcp"]),
+        new McpAdapter("Vercel-Agent", "npx", ["-y", "agent-browser"]),
+        new McpAdapter("Vibium", "npx", ["-y", "vibium", "mcp"]),
+        new McpAdapter("MCP-Selenium", "npx", ["-y", "@angiejones/mcp-selenium"])
+    ];
+
+    const adapters = adapterFilter
+        ? allAdapters.filter(a => a.name.toLowerCase().includes(adapterFilter))
+        : allAdapters;
+
+    if (adapters.length === 0) {
+        console.error(`No adapters found matching: ${adapterFilter}`);
+        process.exit(1);
     }
 
-    await telemetry.exportCsv('results.csv');
+    const filteredScenarios = scenarioFilter
+        ? SCENARIOS.filter(s => s.name.toLowerCase().includes(scenarioFilter))
+        : SCENARIOS;
+
+    // Run adapters in parallel
+    logger.info('Benchmark', `Starting parallel benchmark with ${adapters.length} adapter(s) and ${filteredScenarios.length} scenario(s)`);
+
+    await Promise.all(
+        adapters.map(adapter => runAdapterScenarios(adapter, filteredScenarios, llm, telemetry))
+    );
+
+    await telemetry.exportCsv(config.output.resultsFile);
+    logger.info('Benchmark', `Benchmark complete! Results saved to ${config.output.resultsFile}`);
 }
 
 runBenchmark().catch(console.error);
