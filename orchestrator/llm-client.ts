@@ -47,6 +47,7 @@ export class LLMClient {
             const response = await this.anthropic!.messages.create({
                 model: 'claude-3-opus-20240229',
                 max_tokens: 1024,
+                temperature: 0,  // Deterministic output
                 messages: messages
                     .filter(m => m.role !== 'system')
                     .map(m => ({ role: m.role, content: m.content })),
@@ -72,6 +73,11 @@ export class LLMClient {
             console.log(`[LLM] Gemini Tools: ${JSON.stringify(tools.map(t => t.name))}`);
             const model = this.gemini!.getGenerativeModel({
                 model: modelName,
+                generationConfig: {
+                    temperature: 0,  // Deterministic output
+                    topP: 1,
+                    topK: 1,
+                },
                 tools: [{
                     functionDeclarations: tools.map(t => {
                         const cleanSchema = (schema: any): any => {
@@ -167,6 +173,8 @@ export class LLMClient {
             const response = await this.openai!.chat.completions.create({
                 model: model,
                 messages: messages,
+                temperature: 0,  // Deterministic output
+                seed: 42,        // Consistent results across runs
                 tools: tools.map(t => ({
                     type: 'function' as const,
                     function: {

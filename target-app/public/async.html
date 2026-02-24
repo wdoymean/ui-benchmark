@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Async Loading | UI Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 500px;
+            text-align: center;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+        .spinner {
+            border: 4px solid #334155;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #0f172a;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        .result.success {
+            border: 2px solid #10b981;
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data Fetcher</h1>
+        <p>Simulate API call with 3-second delay</p>
+        <button id="fetchBtn">Fetch Remote Data</button>
+        <div class="spinner" id="spinner"></div>
+        <div class="result" id="result">
+            <strong>Response Received:</strong><br>
+            User ID: 42<br>
+            Status: Active<br>
+            Token: ABC-XYZ-789
+        </div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('fetchBtn');
+        const spinner = document.getElementById('spinner');
+        const result = document.getElementById('result');
+
+        btn.onclick = async () => {
+            // Show loading state
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            spinner.style.display = 'block';
+            result.style.display = 'none';
+
+            // Simulate 3-second API call
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Show result
+            spinner.style.display = 'none';
+            result.style.display = 'block';
+            result.classList.add('success');
+            btn.textContent = 'Fetch Remote Data';
+            btn.disabled = false;
+        };
+    </script>
+</body>
+</html>

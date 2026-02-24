@@ -22,6 +22,7 @@ const ConfigSchema = z.object({
         chromeDevToolsSettleDelayMs: z.number().int().positive().default(1000),
         vibiumWarmupDelayMs: z.number().int().positive().default(2000),
         vercelStabilizationDelayMs: z.number().int().positive().default(5000),
+        parallelExecution: z.boolean().default(true),
     }),
 
     // Target Application
@@ -66,6 +67,7 @@ function loadConfig(): Config {
             chromeDevToolsSettleDelayMs: process.env.CHROME_DEVTOOLS_SETTLE_DELAY_MS ? parseInt(process.env.CHROME_DEVTOOLS_SETTLE_DELAY_MS, 10) : 1000,
             vibiumWarmupDelayMs: process.env.VIBIUM_WARMUP_DELAY_MS ? parseInt(process.env.VIBIUM_WARMUP_DELAY_MS, 10) : 2000,
             vercelStabilizationDelayMs: process.env.VERCEL_STABILIZATION_DELAY_MS ? parseInt(process.env.VERCEL_STABILIZATION_DELAY_MS, 10) : 5000,
+            parallelExecution: process.env.PARALLEL_EXECUTION !== 'false',
         },
         target: {
             baseUrl: process.env.TARGET_BASE_URL || 'http://localhost:3001',

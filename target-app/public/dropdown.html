@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dropdown Selection | UI Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 1.5rem;
+            width: 450px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        select:focus {
+            outline: 2px solid #fff;
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        button:hover {
+            background: #f0f0f0;
+        }
+        .result {
+            display: none;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configuration Panel</h1>
+
+        <div class="form-group">
+            <label for="region">Select Region:</label>
+            <select id="region">
+                <option value="">-- Choose Region --</option>
+                <option value="us-east">US East</option>
+                <option value="us-west">US West</option>
+                <option value="eu-central">EU Central</option>
+                <option value="asia-pacific">Asia Pacific</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="instance">Select Instance Type:</label>
+            <select id="instance">
+                <option value="">-- Choose Instance --</option>
+                <option value="t2.micro">t2.micro (1 vCPU, 1GB RAM)</option>
+                <option value="t2.small">t2.small (1 vCPU, 2GB RAM)</option>
+                <option value="t2.medium">t2.medium (2 vCPU, 4GB RAM)</option>
+                <option value="m5.large">m5.large (2 vCPU, 8GB RAM)</option>
+            </select>
+        </div>
+
+        <button id="deployBtn">Deploy Configuration</button>
+
+        <div class="result" id="result">
+            ✓ Deployment Successful!<br>
+            <span id="resultText"></span>
+        </div>
+    </div>
+
+    <script>
+        const regionSelect = document.getElementById('region');
+        const instanceSelect = document.getElementById('instance');
+        const deployBtn = document.getElementById('deployBtn');
+        const result = document.getElementById('result');
+        const resultText = document.getElementById('resultText');
+
+        deployBtn.onclick = () => {
+            const region = regionSelect.value;
+            const instance = instanceSelect.value;
+
+            if (!region || !instance) {
+                alert('Please select both region and instance type!');
+                return;
+            }
+
+            // Check for specific combination
+            if (region === 'eu-central' && instance === 'm5.large') {
+                resultText.textContent = `Region: ${region} | Instance: ${instance}`;
+                result.style.display = 'block';
+                deployBtn.style.display = 'none';
+            } else {
+                alert('Please select EU Central region with m5.large instance for this benchmark.');
+            }
+        };
+    </script>
+</body>
+</html>

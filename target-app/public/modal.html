@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Modal Interaction | UI Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #e5e7eb;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .main-content {
+            text-align: center;
+        }
+        button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        button:hover { background: #6d28d9; }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: #1f2937;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .modal h2 {
+            margin-top: 0;
+            color: #a78bfa;
+        }
+        .modal input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #111827;
+            border: 1px solid #374151;
+            color: white;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            margin: 1rem 0;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .modal-actions button {
+            flex: 1;
+            padding: 0.75rem;
+        }
+        .btn-cancel {
+            background: #374151;
+        }
+        .btn-cancel:hover {
+            background: #4b5563;
+        }
+
+        .success-message {
+            display: none;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #065f46;
+            color: #10b981;
+            border-radius: 0.5rem;
+            border: 1px solid #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <h1>Modal Challenge</h1>
+        <p>Open the modal and submit the secret code</p>
+        <button id="openModalBtn">Open Secure Panel</button>
+        <div class="success-message" id="successMsg">
+            ✓ Verification Complete: Code "ALPHA-9000" Accepted
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h2>Security Verification</h2>
+            <p>Enter the authorization code to proceed:</p>
+            <input type="text" id="codeInput" placeholder="Enter ALPHA-9000">
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelBtn">Cancel</button>
+                <button id="submitBtn">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const openBtn = document.getElementById('openModalBtn');
+        const overlay = document.getElementById('modalOverlay');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const codeInput = document.getElementById('codeInput');
+        const successMsg = document.getElementById('successMsg');
+
+        openBtn.onclick = () => {
+            overlay.classList.add('active');
+        };
+
+        cancelBtn.onclick = () => {
+            overlay.classList.remove('active');
+        };
+
+        submitBtn.onclick = () => {
+            const code = codeInput.value.trim();
+            if (code === 'ALPHA-9000') {
+                overlay.classList.remove('active');
+                successMsg.style.display = 'block';
+                openBtn.style.display = 'none';
+            } else {
+                alert('Invalid code! Try ALPHA-9000');
+            }
+        };
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                overlay.classList.remove('active');
+            }
+        };
+    </script>
+</body>
+</html>

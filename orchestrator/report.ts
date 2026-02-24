@@ -103,10 +103,24 @@ async function generateReport() {
     markdown += `- **Tool Duration**: Time spent executing MCP commands (browser interaction).\n`;
     markdown += `- **Token Efficiency**: Calculated as \`Success (1/0) / (Total Tokens / 1000)\`. Higher is better. It represents how many successful scenarios you get per 1,000 tokens spent.\n\n`;
 
+    markdown += `## 🎯 Test Scenarios\n\n`;
+    markdown += `This benchmark evaluates browser automation capabilities across 8 challenging scenarios:\n\n`;
+    markdown += `1. **Table Pagination**: Navigate through paginated data to find specific information (Plasma Shield price)\n`;
+    markdown += `2. **Wizard Form**: Complete a multi-step form with validation and state management\n`;
+    markdown += `3. **Shadow DOM**: Interact with elements inside Shadow DOM (requires deep DOM traversal - 3 levels)\n`;
+    markdown += `4. **Drag and Drop**: Perform complex mouse interactions to move items between columns\n`;
+    markdown += `5. **Self Healing**: Handle dynamic UI with changing attributes and IDs (rotates every 2s)\n`;
+    markdown += `6. **Async Loading**: Wait for asynchronous operations (3-second simulated API call)\n`;
+    markdown += `7. **Modal Interaction**: Open modal overlay, interact with z-indexed elements, and submit form\n`;
+    markdown += `8. **Dropdown Selection**: Select from native HTML dropdowns and verify combination\n\n`;
+
     markdown += `## 🛠️ Infrastructure\n\n`;
+    markdown += `- **Platform**: ${process.platform} (${process.arch})\n`;
+    markdown += `- **Node.js**: ${process.version}\n`;
+    markdown += `- **OS**: ${require('os').type()} ${require('os').release()}\n`;
     markdown += `- **LLM**: Gemini Flash (Configurable via .env)\n`;
     markdown += `- **Protocol**: Model Context Protocol (MCP)\n`;
-    markdown += `- **Scenarios**: 5 High-complexity UI tasks (Shadow DOM, D&D, etc.)\n`;
+    markdown += `- **Max Steps**: 20 per scenario\n`;
 
     fs.writeFileSync(config.output.reportFile, markdown);
     logger.info('Report', `Report generated: ${config.output.reportFile}`);

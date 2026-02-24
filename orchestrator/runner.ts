@@ -11,6 +11,9 @@ const SCENARIOS = [
     { name: 'Shadow DOM', url: `${config.target.baseUrl}/shadow.html`, goal: 'Enter "OPEN-SESAME" into the secret input and click reveal.' },
     { name: 'Drag and Drop', url: `${config.target.baseUrl}/dnd.html`, goal: 'Drag "Implement MCP Logic" from To Do to the Done column.' },
     { name: 'Self Healing', url: `${config.target.baseUrl}/dynamic.html`, goal: 'Click the "ACCESS SYSTEM" button despite its changing attributes.' },
+    { name: 'Async Loading', url: `${config.target.baseUrl}/async.html`, goal: 'Click "Fetch Remote Data" button and wait for the result to appear showing "Token: ABC-XYZ-789".' },
+    { name: 'Modal Interaction', url: `${config.target.baseUrl}/modal.html`, goal: 'Open the modal, enter code "ALPHA-9000" and submit to see the success message.' },
+    { name: 'Dropdown Selection', url: `${config.target.baseUrl}/dropdown.html`, goal: 'Select "EU Central" region and "m5.large" instance, then click Deploy.' },
 ];
 
 function verifyGoal(scenarioName: string, context: string): boolean {
@@ -31,6 +34,13 @@ function verifyGoal(scenarioName: string, context: string): boolean {
             const hasPrice = context.includes('$900');
             const hasName = lowerContext.includes('plasma shield');
             return hasPrice && hasName && !context.includes('const data = [');
+        case 'Async Loading':
+            return context.includes('Token: ABC-XYZ-789') || context.includes('ABC-XYZ-789');
+        case 'Modal Interaction':
+            return lowerContext.includes('verification complete') && context.includes('ALPHA-9000');
+        case 'Dropdown Selection':
+            return lowerContext.includes('deployment successful') &&
+                   (lowerContext.includes('eu-central') || lowerContext.includes('m5.large'));
         default: return false;
     }
 }
@@ -227,12 +237,20 @@ async function runBenchmark() {
         ? SCENARIOS.filter(s => s.name.toLowerCase().includes(scenarioFilter))
         : SCENARIOS;
 
-    // Run adapters in parallel
-    logger.info('Benchmark', `Starting parallel benchmark with ${adapters.length} adapter(s) and ${filteredScenarios.length} scenario(s)`);
+    // Run adapters sequentially or in parallel based on config
+    const executionMode = config.benchmark.parallelExecution ? 'parallel' : 'sequential';
+    logger.info('Benchmark', `Starting ${executionMode} benchmark with ${adapters.length} adapter(s) and ${filteredScenarios.length} scenario(s)`);
 
-    await Promise.all(
-        adapters.map(adapter => runAdapterScenarios(adapter, filteredScenarios, llm, telemetry))
-    );
+    if (config.benchmark.parallelExecution) {
+        await Promise.all(
+            adapters.map(adapter => runAdapterScenarios(adapter, filteredScenarios, llm, telemetry))
+        );
+    } else {
+        // Sequential execution - more stable, avoids race conditions
+        for (const adapter of adapters) {
+            await runAdapterScenarios(adapter, filteredScenarios, llm, telemetry);
+        }
+    }
 
     await telemetry.exportCsv(config.output.resultsFile);
     logger.info('Benchmark', `Benchmark complete! Results saved to ${config.output.resultsFile}`);
