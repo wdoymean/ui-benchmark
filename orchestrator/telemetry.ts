@@ -1,9 +1,12 @@
 import { createObjectCsvWriter } from 'csv-writer';
 
+export type TestStatus = 'success' | 'failed' | 'crashed' | 'error';
+
 export interface Metrics {
     scenario: string;
     adapter: string;
     success: boolean;
+    status: TestStatus;
     steps: number;
     durationMs: number;
     llmDurationMs: number;
@@ -20,7 +23,10 @@ export class Telemetry {
 
     log(metric: Metrics) {
         this.results.push(metric);
-        console.log(`[Metrics] ${metric.adapter} | ${metric.scenario} | ${metric.success ? 'PASS' : 'FAIL'} | ${metric.steps} steps | ${metric.durationMs}ms`);
+        const statusEmoji = metric.status === 'success' ? '✅' :
+                           metric.status === 'crashed' ? '💥' :
+                           metric.status === 'error' ? '⚠️' : '❌';
+        console.log(`[Metrics] ${metric.adapter} | ${metric.scenario} | ${statusEmoji} ${metric.status.toUpperCase()} | ${metric.steps} steps | ${metric.durationMs}ms`);
     }
 
     async exportCsv(filePath: string) {
@@ -30,6 +36,7 @@ export class Telemetry {
                 { id: 'scenario', title: 'Scenario' },
                 { id: 'adapter', title: 'Adapter' },
                 { id: 'success', title: 'Success' },
+                { id: 'status', title: 'Status' },
                 { id: 'steps', title: 'Steps' },
                 { id: 'durationMs', title: 'Total Duration (ms)' },
                 { id: 'llmDurationMs', title: 'LLM Duration (ms)' },

@@ -72,16 +72,32 @@ async function generateReport() {
     markdown += `Generated on: ${new Date().toLocaleString()}\n\n`;
 
     markdown += `## 🚀 Summary Table\n\n`;
-    markdown += `| Scenario | Adapter | Success | Steps | Total (ms) | Efficiency | Avg Context (chars) |\n`;
+    markdown += `| Scenario | Adapter | Status | Steps | Total (ms) | Efficiency | Avg Context (chars) |\n`;
     markdown += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 
     data.forEach(row => {
         const efficiency = parseFloat(row['Token Efficiency'] || '0').toFixed(6);
         const contextSize = Math.round(parseFloat(row['Avg Context Size (chars)'] || '0'));
-        markdown += `| ${row.Scenario} | ${row.Adapter} | ${row.Success === 'true' ? '✅' : '❌'} | ${row.Steps} | ${row['Total Duration (ms)']} | **${efficiency}** | ${contextSize} |\n`;
+
+        // Status display with emoji
+        const status = row.Status?.toLowerCase() || (row.Success === 'true' ? 'success' : 'failed');
+        let statusIcon = '';
+        switch (status) {
+            case 'success': statusIcon = '✅ SUCCESS'; break;
+            case 'crashed': statusIcon = '💥 CRASHED'; break;
+            case 'error': statusIcon = '⚠️ ERROR'; break;
+            default: statusIcon = '❌ FAILED'; break;
+        }
+
+        markdown += `| ${row.Scenario} | ${row.Adapter} | ${statusIcon} | ${row.Steps} | ${row['Total Duration (ms)']} | **${efficiency}** | ${contextSize} |\n`;
     });
 
     markdown += `\n\n## 💡 Key Metrics Explained\n\n`;
+    markdown += `- **Status Types**:\n`;
+    markdown += `  - ✅ **SUCCESS**: Goal achieved successfully\n`;
+    markdown += `  - ❌ **FAILED**: Goal not achieved, but execution completed normally\n`;
+    markdown += `  - 💥 **CRASHED**: Browser/adapter crashed (connection lost, timeout, process died)\n`;
+    markdown += `  - ⚠️ **ERROR**: Initialization or tool execution error (not a scenario failure)\n`;
     markdown += `- **Total Duration**: End-to-end time for the scenario.\n`;
     markdown += `- **LLM Duration**: Pure inference time (latency from the provider).\n`;
     markdown += `- **Tool Duration**: Time spent executing MCP commands (browser interaction).\n`;

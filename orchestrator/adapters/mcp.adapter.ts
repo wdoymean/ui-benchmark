@@ -21,6 +21,7 @@ export class McpAdapter implements BrowserAdapter {
     private tools: Tool[] = [];
     private activeCapability: { context: string, navigate: string } | null = null;
     private toolTimeout: number = config.benchmark.defaultToolTimeoutMs;
+    private cleanupHandler: (() => Promise<void>) | null = null;
 
     constructor(name: string, command: string, args: string[] = []) {
         this.name = name;
@@ -31,6 +32,20 @@ export class McpAdapter implements BrowserAdapter {
             this.serverCommand = command;
             this.serverArgs = args;
         }
+
+        // Register cleanup handler for process termination
+        this.cleanupHandler = async () => {
+            logger.debug('MCP', `Emergency cleanup triggered for ${this.name}`);
+            await this.cleanup();
+        };
+
+        process.on('exit', () => { this.cleanupHandler?.(); });
+        process.on('SIGINT', () => { this.cleanupHandler?.().then(() => process.exit(0)); });
+        process.on('SIGTERM', () => { this.cleanupHandler?.().then(() => process.exit(0)); });
+        process.on('uncaughtException', (err) => {
+            logger.error('MCP', `Uncaught exception in ${this.name}`, { error: err.message });
+            this.cleanupHandler?.().then(() => process.exit(1));
+        });
     }
 
     async init(): Promise<void> {
@@ -172,6 +187,25 @@ export class McpAdapter implements BrowserAdapter {
     async getPageContext(): Promise<string> {
         if (!this.client) return "Client not initialized";
 
+        // Priority 1: Visual/Rich context tools (Vibium, screenshots, etc.)
+        const visualTools = this.tools.filter(t => {
+            const lowName = t.name.toLowerCase();
+            return lowName.includes('visual') || lowName.includes('screenshot') || lowName === 'get_visual_context';
+        });
+
+        for (const tool of visualTools) {
+            try {
+                const result = await this.executeTool(tool.name, {});
+                if (result.success && result.message && result.message.length > 100) {
+                    logger.debug('MCP', `Using visual tool: ${tool.name} (${result.message.length} chars)`);
+                    return result.message;
+                }
+            } catch (e) {
+                logger.debug('MCP', `Visual tool ${tool.name} failed, trying next...`);
+            }
+        }
+
+        // Priority 2: Chrome DevTools with deep Shadow DOM support
         const evalTool = this.tools.find(t => {
             const lowName = t.name.toLowerCase();
             return lowName.includes('evaluate') || lowName.includes('exec') || lowName.includes('script');
@@ -223,14 +257,22 @@ export class McpAdapter implements BrowserAdapter {
             `;
             const evalArgs = JSON.stringify(evalTool.parameters).includes('expression') ? { expression: script } : { script: script };
             const result = await this.executeTool(evalTool.name, evalArgs);
-            if (result.success && result.message) return result.message;
+            if (result.success && result.message && result.message.length > 100) {
+                logger.debug('MCP', `Using Chrome DevTools eval: ${result.message.length} chars`);
+                return result.message;
+            }
         }
 
+        // Priority 3: Capability-specific context tools (get_html, get_dom, etc.)
         if (this.activeCapability) {
             const result = await this.executeTool(this.activeCapability.context, {});
-            if (result.success && result.message) return result.message;
+            if (result.success && result.message && result.message.length > 100) {
+                logger.debug('MCP', `Using capability tool ${this.activeCapability.context}: ${result.message.length} chars`);
+                return result.message;
+            }
         }
 
+        // Priority 4: Generic evaluate/script tools
         if (evalTool) {
             const script = `
                 (() => {
@@ -247,18 +289,57 @@ export class McpAdapter implements BrowserAdapter {
             `;
             const evalArgs = JSON.stringify(evalTool.parameters).includes('expression') ? { expression: script } : { script: script };
             const result = await this.executeTool(evalTool.name, evalArgs);
-            if (result.success && result.message) return result.message;
+            if (result.success && result.message && result.message.length > 100) {
+                logger.debug('MCP', `Using generic eval: ${result.message.length} chars`);
+                return result.message;
+            }
         }
 
+        // Priority 5: Fallback - any tool with "get" or "page" in name
+        const fallbackTools = this.tools.filter(t => {
+            const lowName = t.name.toLowerCase();
+            return (lowName.includes('get') || lowName.includes('page')) &&
+                   !lowName.includes('navigate') && !lowName.includes('click');
+        });
+
+        for (const tool of fallbackTools) {
+            try {
+                const result = await this.executeTool(tool.name, {});
+                if (result.success && result.message && result.message.length > 100) {
+                    logger.debug('MCP', `Using fallback tool ${tool.name}: ${result.message.length} chars`);
+                    return result.message;
+                }
+            } catch (e) {
+                // Continue to next tool
+            }
+        }
+
+        logger.warn('MCP', `No suitable context tool found for ${this.name}`);
         return "MCP: No context tool found. Available: " + this.tools.map(t => t.name).join(', ');
     }
 
     private async cleanup(): Promise<void> {
         if (this.transport) {
             try {
-                await (this.transport as any).close();
+                // Try to close gracefully first
+                const closePromise = (this.transport as any).close();
+                await Promise.race([
+                    closePromise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Cleanup timeout')), 3000))
+                ]);
             } catch (e) {
-                // Ignore cleanup errors
+                logger.debug('MCP', `Cleanup error for ${this.name} (expected on crash)`, { error: (e as Error).message });
+
+                // Force kill child process if it exists
+                try {
+                    const transport = this.transport as any;
+                    if (transport._process && !transport._process.killed) {
+                        logger.debug('MCP', `Force killing process for ${this.name}`);
+                        transport._process.kill('SIGKILL');
+                    }
+                } catch (killError) {
+                    logger.debug('MCP', `Force kill failed for ${this.name}`, { error: (killError as Error).message });
+                }
             }
         }
         this.client = null;
@@ -269,5 +350,14 @@ export class McpAdapter implements BrowserAdapter {
 
     async close(): Promise<void> {
         await this.cleanup();
+
+        // Remove cleanup handlers to prevent duplicate calls
+        if (this.cleanupHandler) {
+            process.removeListener('exit', this.cleanupHandler as any);
+            process.removeListener('SIGINT', this.cleanupHandler as any);
+            process.removeListener('SIGTERM', this.cleanupHandler as any);
+            process.removeListener('uncaughtException', this.cleanupHandler as any);
+            this.cleanupHandler = null;
+        }
     }
 }

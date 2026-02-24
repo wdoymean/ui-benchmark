@@ -1,6 +1,6 @@
 import { McpAdapter } from './adapters/mcp.adapter';
 import { LLMClient } from './llm-client';
-import { Telemetry } from './telemetry';
+import { Telemetry, TestStatus } from './telemetry';
 import { BrowserAdapter } from './adapters/base';
 import { config } from './config';
 import { logger } from './logger';
@@ -152,10 +152,35 @@ async function runAdapterScenarios(
                     const totalDurationMs = Date.now() - startTime;
                     const totalTokens = totalPromptTokens + totalCompletionTokens;
 
+                    // Determine test status
+                    let status: TestStatus;
+                    if (success) {
+                        status = 'success';
+                    } else if (lastError) {
+                        // Check for crash indicators
+                        if (lastError.includes('Connection closed') ||
+                            lastError.includes('ECONNRESET') ||
+                            lastError.includes('timed out') ||
+                            lastError.includes('Transport closed') ||
+                            lastError.includes('Process exited')) {
+                            status = 'crashed';
+                        } else if (lastError.includes('Tool execution failed') ||
+                                   lastError.includes('not initialized') ||
+                                   lastError.includes('No tools discovered')) {
+                            status = 'error';
+                        } else {
+                            status = 'failed';
+                        }
+                    } else {
+                        // Failed to achieve goal but no explicit error
+                        status = 'failed';
+                    }
+
                     telemetry.log({
                         scenario: scenario.name,
                         adapter: adapter.name,
                         success,
+                        status,
                         steps,
                         durationMs: totalDurationMs,
                         llmDurationMs,
