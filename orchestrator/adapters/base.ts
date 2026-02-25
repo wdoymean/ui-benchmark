@@ -11,11 +11,20 @@ export interface AdapterResponse {
     data?: any;
 }
 
+export interface PageContext {
+    text: string;
+    screenshot?: {
+        type: 'image';
+        data: string; // base64 encoded image data
+        mimeType: string;
+    };
+}
+
 export interface BrowserAdapter {
     name: string;
     init(): Promise<void>;
     getTools(): Tool[];
     executeTool(name: string, args: any): Promise<AdapterResponse>;
-    getPageContext(): Promise<string>;
+    getPageContext(): Promise<string | PageContext>;
     close(): Promise<void>;
 }

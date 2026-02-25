@@ -1,16 +1,19 @@
 # 📊 UI Automation Benchmark Report
 
-Generated on: 2/25/2026, 12:12:25 AM
+Generated on: 2/26/2026, 12:06:46 AM
 
 ## 🚀 Summary Table
 
 | Scenario | Adapter | Status | Steps | Total (ms) | Efficiency | Avg Context (chars) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Table Pagination | MCP-Playwright | ❌ FAILED | 20 | 51061 | **0.000000** | 672 |
-| Wizard Form | MCP-Playwright | ❌ FAILED | 20 | 39724 | **0.000000** | 441 |
-| Shadow DOM | MCP-Playwright | ❌ FAILED | 20 | 32262 | **0.000000** | 447 |
-| Drag and Drop | MCP-Playwright | ❌ FAILED | 20 | 41820 | **0.000000** | 451 |
-| Self Healing | MCP-Playwright | ❌ FAILED | 20 | 41774 | **0.000000** | 520 |
+| Table Pagination | MCP-Playwright | ✅ SUCCESS | 3 | 9943 | **0.076202** | 1420 |
+| Wizard Form | MCP-Playwright | ✅ SUCCESS | 12 | 40580 | **0.014472** | 460 |
+| Shadow DOM | MCP-Playwright | ✅ SUCCESS | 2 | 6643 | **0.182983** | 505 |
+| Drag and Drop | MCP-Playwright | ✅ SUCCESS | 8 | 21265 | **0.028603** | 446 |
+| Self Healing | MCP-Playwright | ✅ SUCCESS | 1 | 3603 | **0.423191** | 471 |
+| Async Loading | MCP-Playwright | ✅ SUCCESS | 2 | 6055 | **0.191498** | 440 |
+| Modal Interaction | MCP-Playwright | ✅ SUCCESS | 3 | 10415 | **0.108401** | 506 |
+| Dropdown Selection | MCP-Playwright | ✅ SUCCESS | 8 | 24258 | **0.025951** | 653 |
 
 
 ## 💡 Key Metrics Explained
@@ -27,13 +30,16 @@ Generated on: 2/25/2026, 12:12:25 AM
 
 ## 🎯 Test Scenarios
 
-This benchmark evaluates browser automation capabilities across 5 challenging scenarios:
+This benchmark evaluates browser automation capabilities across 8 challenging scenarios:
 
 1. **Table Pagination**: Navigate through paginated data to find specific information (Plasma Shield price)
 2. **Wizard Form**: Complete a multi-step form with validation and state management
-3. **Shadow DOM**: Interact with elements inside Shadow DOM (requires deep DOM traversal)
+3. **Shadow DOM**: Interact with elements inside Shadow DOM (requires deep DOM traversal - 3 levels)
 4. **Drag and Drop**: Perform complex mouse interactions to move items between columns
-5. **Self Healing**: Handle dynamic UI with changing attributes and IDs
+5. **Self Healing**: Handle dynamic UI with changing attributes and IDs (rotates every 2s)
+6. **Async Loading**: Wait for asynchronous operations (3-second simulated API call)
+7. **Modal Interaction**: Open modal overlay, interact with z-indexed elements, and submit form
+8. **Dropdown Selection**: Select from native HTML dropdowns and verify combination
 
 ## 🛠️ Infrastructure
 

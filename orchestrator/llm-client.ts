@@ -68,7 +68,7 @@ export class LLMClient {
                 }
             };
         } else if (this.provider === 'gemini') {
-            const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+            const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
             console.log(`[LLM] Using Gemini model: ${modelName}`);
             console.log(`[LLM] Gemini Tools: ${JSON.stringify(tools.map(t => t.name))}`);
             const model = this.gemini!.getGenerativeModel({
@@ -134,11 +134,58 @@ export class LLMClient {
             // Gemini requires alternating roles (user -> model -> user)
             // And history must NOT end with a user message if we use sendMessage()
             const filteredMessages = messages.filter(m => m.role !== 'system');
-            const history = filteredMessages.slice(0, -1).map(m => ({
-                role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: m.content }]
-            }));
-            const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || 'Continue';
+            const history = filteredMessages.slice(0, -1).map(m => {
+                const content = m.content;
+                let parts: any[];
+
+                // Handle multimodal content (arrays with images and text)
+                if (Array.isArray(content)) {
+                    parts = content.map((item: any) => {
+                        if (item.type === 'image' && item.source) {
+                            return {
+                                inlineData: {
+                                    mimeType: item.source.media_type,
+                                    data: item.source.data
+                                }
+                            };
+                        } else if (item.type === 'text') {
+                            return { text: item.text };
+                        }
+                        return { text: JSON.stringify(item) };
+                    });
+                } else if (typeof content === 'string') {
+                    parts = [{ text: content }];
+                } else {
+                    parts = [{ text: JSON.stringify(content) }];
+                }
+
+                return {
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts
+                };
+            });
+
+            const lastMessageContent = filteredMessages[filteredMessages.length - 1]?.content;
+            let lastMessage: any;
+
+            // Convert last message content to Gemini format
+            if (Array.isArray(lastMessageContent)) {
+                lastMessage = lastMessageContent.map((item: any) => {
+                    if (item.type === 'image' && item.source) {
+                        return {
+                            inlineData: {
+                                mimeType: item.source.media_type,
+                                data: item.source.data
+                            }
+                        };
+                    } else if (item.type === 'text') {
+                        return { text: item.text };
+                    }
+                    return { text: JSON.stringify(item) };
+                });
+            } else {
+                lastMessage = lastMessageContent || 'Continue';
+            }
 
             try {
                 const chat = model.startChat({ history });

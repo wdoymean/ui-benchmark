@@ -62,8 +62,16 @@ async function runAdapterScenarios(
         }
 
         // Optimization: Filter tools once per adapter
-        const navigationTools = ['browser_navigate', 'navigate', 'navigate_page', 'navigate_url', 'browser_navigate_back', 'browser_tabs', 'browser_close', 'close_page', 'browser_install'];
-        const scenarioTools = adapter.getTools().filter(t => !navigationTools.includes(t.name));
+        const navigationTools = ['browser_navigate', 'navigate', 'navigate_page', 'navigate_url', 'browser_navigate_back', 'browser_tabs', 'browser_close', 'close_page', 'browser_install', 'browser_launch', 'browser_quit'];
+        const excludedTools = [
+            ...navigationTools,
+            // Chrome DevTools tools that shouldn't be used by the LLM during scenarios
+            'performance_start_trace', 'performance_stop_trace', 'performance_analyze_insight',
+            'take_memory_snapshot', 'list_network_requests', 'get_network_request',
+            'list_console_messages', 'get_console_message', 'emulate', 'resize_page',
+            'list_pages', 'select_page', 'new_page', 'upload_file'
+        ];
+        const scenarioTools = adapter.getTools().filter(t => !excludedTools.includes(t.name));
 
         for (const scenario of scenarios) {
                 logger.info('Scenario', `Testing: ${scenario.name} with ${adapter.name}`);
@@ -80,10 +88,26 @@ async function runAdapterScenarios(
                 let contextCount = 0;
 
                 try {
+                    // Check if browser needs to be launched first (e.g., Vibium)
+                    const launchTool = adapter.getTools().find(t => t.name === 'browser_launch');
+                    if (launchTool) {
+                        logger.debug('Scenario', 'Launching browser...');
+                        await adapter.executeTool(launchTool.name, {});
+                    }
+
                     // Initial Navigation
-                    const navTool = adapter.getTools().find(t => t.name === 'browser_navigate' || t.name === 'navigate' || t.name === 'navigate_page' || t.name === 'navigate_url');
+                    const navTool = adapter.getTools().find(t =>
+                        t.name === 'browser_navigate' ||
+                        t.name === 'navigate' ||
+                        t.name === 'navigate_page' ||
+                        t.name === 'navigate_url' ||
+                        t.name === 'agent_browser_navigate'
+                    );
                     if (navTool) {
+                        logger.debug('Scenario', `Navigating to ${scenario.url} using ${navTool.name}`);
                         await adapter.executeTool(navTool.name, { url: scenario.url });
+                    } else {
+                        logger.warn('Scenario', `No navigation tool found! Available: ${adapter.getTools().map(t => t.name).join(', ')}`);
                     }
 
                     const messages: any[] = [
@@ -99,19 +123,42 @@ async function runAdapterScenarios(
                             await new Promise(r => setTimeout(r, config.benchmark.chromeDevToolsSettleDelayMs));
                         }
 
-                        const context = await adapter.getPageContext();
-                        totalContextChars += context.length;
+                        const contextData = await adapter.getPageContext();
+                        const contextText = typeof contextData === 'string' ? contextData : contextData.text;
+                        totalContextChars += contextText.length;
                         contextCount++;
                         toolDurationMs += (Date.now() - contextStart);
 
                         // Early exit if goal achieved by previous step
-                        if (verifyGoal(scenario.name, context)) {
+                        if (verifyGoal(scenario.name, contextText)) {
                             success = true;
                             break;
                         }
 
                         steps++;
-                        messages.push({ role: 'user', content: `Page State:\n${context}\n\nAction?` });
+
+                        // Build message content - multimodal if screenshot available
+                        let messageContent: any;
+                        if (typeof contextData !== 'string' && contextData.screenshot) {
+                            messageContent = [
+                                {
+                                    type: 'image',
+                                    source: {
+                                        type: 'base64',
+                                        media_type: contextData.screenshot.mimeType,
+                                        data: contextData.screenshot.data
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    text: `Page State:\n${contextText}\n\nBefore taking action, carefully analyze the screenshot. If you're about to repeat a failed action, stop and try a different selector or approach.\n\nAction?`
+                                }
+                            ];
+                        } else {
+                            messageContent = `Page State:\n${contextText}\n\nBefore taking action, analyze the current state. If you're about to repeat a failed action, stop and try a different selector.\n\nAction?`;
+                        }
+
+                        messages.push({ role: 'user', content: messageContent });
 
                         // 2. LLM Inference
                         const llmStart = Date.now();
@@ -141,12 +188,13 @@ async function runAdapterScenarios(
                         } else if (response.content.toUpperCase().includes('SUCCESS')) {
                             // Final Verification (User requested fresh check)
                             const finalCheckStart = Date.now();
-                            const finalContext = await adapter.getPageContext();
-                            totalContextChars += finalContext.length;
+                            const finalContextData = await adapter.getPageContext();
+                            const finalContextText = typeof finalContextData === 'string' ? finalContextData : finalContextData.text;
+                            totalContextChars += finalContextText.length;
                             contextCount++;
                             toolDurationMs += (Date.now() - finalCheckStart);
 
-                            if (verifyGoal(scenario.name, finalContext)) {
+                            if (verifyGoal(scenario.name, finalContextText)) {
                                 success = true;
                             } else {
                                 messages.push({ role: 'user', content: `Verification failed. The goal does not appear to be met based on the current page state.` });
